@@ -1,0 +1,25 @@
+# Render.com Blueprint — deploys Nouvel as ONE always-on web service.
+# Express serves both the API and the built React app on a single public URL.
+#
+# To deploy:
+#   1. Push this repo to GitHub.
+#   2. On render.com: New > Blueprint > pick your repo (Render reads this file).
+#   3. Fill in the env vars it asks for (ALLOWED_EMAILS, OPENAI_API_KEY).
+#   4. Deploy. You get a URL like https://nouvel.onrender.com to share.
+services:
+  - type: web
+    name: nouvel
+    runtime: node
+    plan: free
+    # --include=dev ensures Vite is available to build the frontend.
+    buildCommand: npm --prefix backend install --include=dev && npm --prefix frontend install --include=dev && npm --prefix frontend run build
+    startCommand: npm --prefix backend start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true        # Render generates a strong secret
+      - key: ALLOWED_EMAILS
+        sync: false                # you enter approved tester emails in the dashboard
+      - key: OPENAI_API_KEY
+        sync: false                # optional; blank = rule-based AI
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
