@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api.js';
+import { getDailyPrompt, PRACTICES } from '../services/mockData.js';
+import { offlineService } from '../services/offline.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 function greeting() {
@@ -10,7 +11,6 @@ function greeting() {
   return 'Good evening';
 }
 
-// Screen 10: Home dashboard — the main hub.
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -20,19 +20,22 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(null);
 
   useEffect(() => {
-    api('/prompt/daily').then((d) => setPrompt(d.prompt)).catch(() => {});
-    api('/results').then((d) => setAreas(d.focusAreas)).catch(() => {});
-    api('/practices').then((d) => setPractice(d.practices[Math.floor(Math.random() * d.practices.length)])).catch(() => {});
-    api('/progress').then(setProgress).catch(() => {});
+    setPrompt(getDailyPrompt());
+    const assessment = offlineService.getAssessment();
+    if (assessment?.focusAreas) {
+      setAreas(assessment.focusAreas);
+    }
+    setPractice(PRACTICES[Math.floor(Math.random() * PRACTICES.length)]);
+    setProgress(offlineService.getProgress());
   }, []);
 
   return (
     <div className="screen">
       <div className="eyebrow">{greeting()}, {user?.name?.split(' ')[0] || 'friend'}</div>
-      <h1>Today’s focus: {areas[0]?.title?.split('&')[0]?.trim() || 'Emotional clarity'}</h1>
+      <h1>Today's focus: {areas[0]?.title?.split('&')[0]?.trim() || 'Emotional clarity'}</h1>
 
       <div className="card" style={{ marginTop: 18 }}>
-        <div className="eyebrow">Today’s prompt</div>
+        <div className="eyebrow">Today's prompt</div>
         <p className="serif" style={{ fontSize: 18, color: 'var(--charcoal)' }}>{prompt || '…'}</p>
         <button className="btn" onClick={() => navigate('/journal', { state: { prompt } })}>Journal on this</button>
       </div>
