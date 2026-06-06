@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { api } from '../api.js';
+import { getAIResponse } from '../services/mockData.js';
 
-// Screen 12: AI Guide — a warm, reflective companion.
 export default function AIGuide() {
   const [messages, setMessages] = useState([
-    { role: 'ai', content: 'I’m here with you. What feels most present for you right now?' },
+    { role: 'ai', content: 'I\'m here with you. What feels most present for you right now?' },
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -12,21 +11,17 @@ export default function AIGuide() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  async function send() {
+  function send() {
     const text = input.trim();
     if (!text || busy) return;
-    const history = messages.slice(-10);
     setMessages((m) => [...m, { role: 'user', content: text }]);
     setInput('');
     setBusy(true);
-    try {
-      const { reply } = await api('/ai/guide', { method: 'POST', body: { message: text, history } });
+    setTimeout(() => {
+      const reply = getAIResponse(text);
       setMessages((m) => [...m, { role: 'ai', content: reply }]);
-    } catch (e) {
-      setMessages((m) => [...m, { role: 'ai', content: 'I had trouble responding just now. Let’s try again in a moment.' }]);
-    } finally {
       setBusy(false);
-    }
+    }, 500);
   }
 
   return (
@@ -44,7 +39,7 @@ export default function AIGuide() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Share what’s on your mind…"
+          placeholder="Share what's on your mind…"
         />
       </div>
       <button className="btn" disabled={busy || !input.trim()} onClick={send}>Send</button>

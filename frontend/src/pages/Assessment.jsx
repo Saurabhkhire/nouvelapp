@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api.js';
+import { ASSESSMENT_QUESTIONS, generateFocusAreas } from '../services/mockData.js';
+import { offlineService } from '../services/offline.js';
 
-// Screen 6: 10-question self-mastery assessment, one question per screen.
 export default function Assessment() {
   const navigate = useNavigate();
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState(ASSESSMENT_QUESTIONS);
   const [answers, setAnswers] = useState({});
   const [i, setI] = useState(0);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    api('/assessment/questions').then((d) => setQuestions(d.questions)).catch((e) => setError(e.message));
-  }, []);
 
   if (error) return <div className="screen"><p className="error">{error}</p></div>;
   if (!questions.length) return <div className="screen center"><div className="glow" /></div>;
@@ -25,13 +21,16 @@ export default function Assessment() {
     setAnswers({ ...answers, [q.id]: option });
   }
 
-  async function next() {
+  function next() {
     if (isLast) {
       navigate('/loading');
       try {
-        const payload = { answers: questions.map((qq) => ({ questionId: qq.id, answer: answers[qq.id] })) };
-        const res = await api('/assessment/submit', { method: 'POST', body: payload });
-        sessionStorage.setItem('nouvel_results', JSON.stringify(res));
+        const focusAreas = generateFocusAreas(answers);
+        offlineService.setAssessment({ answers, focusAreas });
+        const user = offlineService.getUser();
+        user.assessmentCompleted = true;
+        offlineService.setUser(user);
+        sessionStorage.setItem('nouvel_results', JSON.stringify({ focusAreas }));
         navigate('/results');
       } catch (e) {
         setError(e.message);

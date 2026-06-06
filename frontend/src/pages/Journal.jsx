@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { api } from '../api.js';
+import { getAIResponse } from '../services/mockData.js';
+import { offlineService } from '../services/offline.js';
 import MoodPicker from './MoodPicker.jsx';
 
-// Screen 11: Journal — write new entries and browse past ones.
 export default function Journal() {
   const location = useLocation();
-  const [view, setView] = useState('write'); // 'write' | 'history'
+  const [view, setView] = useState('write');
   const [prompt] = useState(location.state?.prompt || '');
   const [text, setText] = useState('');
   const [tags, setTags] = useState('');
@@ -19,20 +19,32 @@ export default function Journal() {
   const [filter, setFilter] = useState('');
 
   function load() {
-    api(`/journal${filter ? `?theme=${encodeURIComponent(filter)}` : ''}`).then((d) => setEntries(d.entries));
+    const allEntries = offlineService.getJournalEntries(filter);
+    setEntries(allEntries);
   }
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
+  useEffect(() => { load(); }, [filter]);
 
   async function save() {
     setError('');
     if (!text.trim()) { setError('Your entry cannot be empty.'); return; }
     setBusy(true);
     try {
-      await api('/journal', {
-        method: 'POST',
-        body: { prompt_text: prompt, journal_text: text, mood_before: moodBefore, mood_after: moodAfter, tags, reflect },
+      let aiReflection = null;
+      if (reflect) {
+        aiReflection = getAIResponse(text);
+      }
+      offlineService.addJournalEntry({
+        prompt_text: prompt,
+        journal_text: text,
+        mood_before: moodBefore,
+        mood_after: moodAfter,
+        tags,
+        ai_reflection: aiReflection,
       });
-      setText(''); setTags(''); setMoodBefore(''); setMoodAfter('');
+      setText('');
+      setTags('');
+      setMoodBefore('');
+      setMoodAfter('');
       setView('history');
       load();
     } catch (e) {
@@ -42,8 +54,8 @@ export default function Journal() {
     }
   }
 
-  async function toggleFav(id) {
-    await api(`/journal/${id}/favorite`, { method: 'PATCH' });
+  function toggleFav(id) {
+    offlineService.toggleFavorite(id);
     load();
   }
 
@@ -55,7 +67,6 @@ export default function Journal() {
           {view === 'write' ? 'View past entries' : 'New entry'}
         </button>
       </div>
-
       {view === 'write' ? (
         <>
           {prompt && <div className="card"><p className="serif" style={{ color: 'var(--charcoal)' }}>{prompt}</p></div>}

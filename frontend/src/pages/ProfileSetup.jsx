@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { offlineService } from '../services/offline.js';
 
 const SEASONS = [
   'I am rebuilding myself',
@@ -14,10 +14,8 @@ const SEASONS = [
 ];
 const AGES = ['Under 18', '18-24', '25-34', '35-44', '45-54', '55+'];
 
-// Screen 4: Profile setup.
 export default function ProfileSetup() {
   const navigate = useNavigate();
-  const { refresh } = useAuth();
   const [ageRange, setAgeRange] = useState('25-34');
   const [season, setSeason] = useState('');
   const [intention, setIntention] = useState('');
@@ -25,18 +23,15 @@ export default function ProfileSetup() {
 
   async function save() {
     setBusy(true);
-    await api('/profile', {
-      method: 'PUT',
-      body: { age_range: ageRange, life_season: season, intention },
-    });
-    await refresh();
+    const profile = { age_range: ageRange, life_season: season, intention };
+    offlineService.setProfile(profile);
     navigate('/onboarding');
   }
 
   return (
     <div className="screen">
       <div className="eyebrow">Personalize Nouvel</div>
-      <h1>Let’s set the tone.</h1>
+      <h1>Let's set the tone.</h1>
       <label>Age range</label>
       <select value={ageRange} onChange={(e) => setAgeRange(e.target.value)}>
         {AGES.map((a) => <option key={a}>{a}</option>)}
