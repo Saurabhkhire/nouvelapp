@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { api, getToken, setToken, clearToken } from '../api.js';
+import { offlineService } from '../services/offline.js';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -9,44 +9,47 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  async function refresh() {
-    if (!getToken()) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const data = await api('/me');
-      setUser(data.user);
-      setProfile(data.profile);
-    } catch {
-      clearToken();
-    } finally {
-      setLoading(false);
-    }
+  function refresh() {
+    const savedUser = offlineService.getUser();
+    const savedProfile = offlineService.getProfile();
+    setUser(savedUser);
+    setProfile(savedProfile);
+    setLoading(false);
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  async function signup(payload) {
-    const data = await api('/auth/signup', { method: 'POST', body: payload });
-    setToken(data.token);
-    setUser(data.user);
-    await refresh();
-    return data;
+  function signup(payload) {
+    const newUser = {
+      id: Date.now(),
+      name: payload.name,
+      email: payload.email,
+      created_at: new Date().toISOString(),
+      assessmentCompleted: false,
+    };
+    offlineService.setUser(newUser);
+    setUser(newUser);
+    return Promise.resolve({ user: newUser, token: 'offline-token' });
   }
 
-  async function login(payload) {
-    const data = await api('/auth/login', { method: 'POST', body: payload });
-    setToken(data.token);
-    setUser(data.user);
-    await refresh();
-    return data;
+  function login(payload) {
+    // In offline mode, just check if user exists by email
+    const savedUser = offlineService.getUser();
+    if (savedUser && savedUser.email === payload.email) {
+      setUser(savedUser);
+      return Promise.resolve({
+        user: savedUser,
+        token: 'offline-token',
+        assessmentCompleted: savedUser.assessmentCompleted || false,
+      });
+    }
+    return Promise.reject(new Error('User not found. Please sign up first.'));
   }
 
   function logout() {
-    clearToken();
+    offlineService.clearUser();
     setUser(null);
     setProfile(null);
   }
