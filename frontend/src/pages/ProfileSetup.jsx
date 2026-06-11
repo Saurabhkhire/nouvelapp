@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { offlineService } from '../services/offline.js';
 
+// Screen 4: Profile Setup (PRD §6).
 const SEASONS = [
   'I am rebuilding myself',
   'I am ready to grow',
@@ -16,16 +17,27 @@ const AGES = ['Under 18', '18-24', '25-34', '35-44', '45-54', '55+'];
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [ageRange, setAgeRange] = useState('25-34');
   const [season, setSeason] = useState('');
   const [intention, setIntention] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   async function save() {
     setBusy(true);
-    const profile = { age_range: ageRange, life_season: season, intention };
-    offlineService.setProfile(profile);
-    navigate('/onboarding');
+    setError('');
+    try {
+      await api('/profile', {
+        method: 'PUT',
+        body: { age_range: ageRange, life_season: season, intention },
+      });
+      await refresh();
+      navigate('/onboarding');
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
   }
 
   return (
@@ -49,6 +61,7 @@ export default function ProfileSetup() {
       <label>Your main intention for using Nouvel</label>
       <input value={intention} onChange={(e) => setIntention(e.target.value)} placeholder="e.g. Feel more grounded and clear" />
 
+      {error && <div className="error">{error}</div>}
       <button className="btn" disabled={busy || !season} onClick={save}>
         {busy ? 'Saving…' : 'Continue'}
       </button>

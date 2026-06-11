@@ -35,7 +35,7 @@ nouvelapp/
 │   │   ├── auth.js         # JWT sign/verify middleware
 │   │   ├── data/assessment.js   # 10 questions + focus-area catalog
 │   │   └── services/llm.js # OpenAI + rule-based fallback
-│   └── tests/api.test.js   # 23 positive/negative API tests
+│   └── tests/api.test.js   # 25 positive/negative API tests
 ├── frontend/               # React app (15 PRD screens)
 │   └── src/pages/ ...
 └── docs/
@@ -73,8 +73,37 @@ npm --prefix frontend run dev  # http://localhost:5173  (proxies /api -> :4000)
 
 ```bash
 cd backend
-npm test                   # 23 tests: 11 positive, 12 negative (no key needed)
+npm test                   # 25 tests: positive + negative (no key needed)
 ```
+
+## Where your data lives (read this if entries "don't save" on another PC)
+
+Every account, journal entry, result and practice completion is stored by the
+**backend** in its SQLite database (`backend/data/nouvel.db`). The React app holds
+**no** data of its own — it only keeps your login token in `localStorage` and calls
+the API for everything else.
+
+That means:
+
+- **The backend must be running.** `npm run dev` starts it for you. If you start
+  only the frontend (`vite`) without the backend, saving a prompt/journal will fail
+  because `/api` has nothing to talk to.
+- **Each machine has its own local database.** After a `git pull` on a different PC,
+  that PC starts with an **empty** `nouvel.db` (the DB file is git-ignored, by design).
+  Accounts and entries created on computer A do **not** appear on computer B unless
+  both point at the **same** backend.
+
+**To share one set of data across machines**, deploy the backend once (see below)
+and point each frontend at it with an env var:
+
+```bash
+# frontend/.env.local   (git-ignored)
+VITE_API_BASE=https://your-app.onrender.com/api
+```
+
+Now every PC reads and writes the same database, so journal entries persist
+everywhere. Leave it unset for normal local development (it defaults to the local
+backend via the Vite proxy).
 
 ## Share it with testers (hosted, invite-only)
 
@@ -121,6 +150,9 @@ Already enabled — no extra setup.
 ## Notes & safety
 
 - Journal entries are stored privately, scoped per-user, never shared (PRD §14).
+- **Delete account** (Profile → Danger zone) permanently erases the account and all
+  associated data via `DELETE /api/account` — profile, answers, results, journal
+  entries, and practice completions cascade-delete (PRD §8 privacy / right to erasure).
 - The AI Guide is constrained by a system prompt that forbids diagnosis, therapy
   replacement, and medical/crisis advice (PRD §8).
 - This is an MVP: native mobile, subscriptions, audio, community, and deep

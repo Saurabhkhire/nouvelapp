@@ -132,6 +132,15 @@ export function createApp() {
     res.json({ ok: true });
   });
 
+  // Permanently delete the account and ALL associated data (PRD §8 privacy /
+  // GDPR-style right to erasure). ON DELETE CASCADE removes the profile,
+  // assessment answers, results, journal entries and practice completions.
+  app.delete('/api/account', requireAuth, (req, res) => {
+    const info = db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
+    if (info.changes === 0) return res.status(404).json({ error: 'Account not found.' });
+    res.json({ ok: true });
+  });
+
   // ---------------- Assessment (PRD Screen 6) ----------------
   app.get('/api/assessment/questions', (req, res) => {
     // Strip internal category mappings from the public payload.

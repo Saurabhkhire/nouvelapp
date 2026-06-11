@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getDailyPrompt, PRACTICES } from '../services/mockData.js';
-import { offlineService } from '../services/offline.js';
+import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 function greeting() {
@@ -11,22 +10,23 @@ function greeting() {
   return 'Good evening';
 }
 
+// Screen 10: Home Dashboard.
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, focusAreas } = useAuth();
   const [prompt, setPrompt] = useState('');
-  const [areas, setAreas] = useState([]);
+  const [areas, setAreas] = useState(focusAreas || []);
   const [practice, setPractice] = useState(null);
   const [progress, setProgress] = useState(null);
 
   useEffect(() => {
-    setPrompt(getDailyPrompt());
-    const assessment = offlineService.getAssessment();
-    if (assessment?.focusAreas) {
-      setAreas(assessment.focusAreas);
-    }
-    setPractice(PRACTICES[Math.floor(Math.random() * PRACTICES.length)]);
-    setProgress(offlineService.getProgress());
+    api('/prompt/daily').then((d) => setPrompt(d.prompt)).catch(() => {});
+    api('/me').then((d) => setAreas(d.focusAreas || [])).catch(() => {});
+    api('/practices').then((d) => {
+      const list = d.practices || [];
+      if (list.length) setPractice(list[Math.floor(Math.random() * list.length)]);
+    }).catch(() => {});
+    api('/progress').then(setProgress).catch(() => {});
   }, []);
 
   return (

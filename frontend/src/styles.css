@@ -179,4 +179,19 @@ textarea { min-height: 160px; resize: vertical; line-height: 1.6; }
   animation: breathe 3.4s ease-in-out infinite; margin: 30px auto;
 }
 @keyframes breathe { 0%,100% { transform: scale(0.85); opacity: 0.6; } 50% { transform: scale(1.1); opacity: 1; } }
+
+/* Personalized glow variants (PRD Screen 7) — tuned to how the user wants to feel.
+   Each has its own hue and breath tempo so the animation differs per person. */
+.glow--peace   { background: radial-gradient(circle, rgba(201,214,227,0.75), rgba(133,120,97,0.12)); animation-duration: 4.2s; }
+.glow--power   { background: radial-gradient(circle, rgba(184,140,97,0.6),  rgba(46,43,39,0.18));  animation-duration: 2.8s; }
+.glow--clarity { background: radial-gradient(circle, rgba(214,226,235,0.85), rgba(184,171,151,0.15)); animation-duration: 3.6s; }
+.glow--ground  { background: radial-gradient(circle, rgba(184,171,151,0.7),  rgba(133,120,97,0.2));  animation-duration: 4.6s; }
+.glow--inspire { background: radial-gradient(circle, rgba(226,201,214,0.7),  rgba(184,140,97,0.15)); animation-duration: 3.0s; }
+.glow--safe    { background: radial-gradient(circle, rgba(233,224,210,0.85), rgba(201,214,227,0.3));  animation-duration: 4.0s; }
+
+.glow + .serif { animation: fade 0.5s ease; }
 .spaced > * + * { margin-top: 4px; }
+
+/* Danger / destructive action (delete account) */
+.btn.danger { background: transparent; color: #a4503f; border: 1px solid #d8a99c; }
+.btn.danger:hover { background: rgba(164, 80, 63, 0.06); }

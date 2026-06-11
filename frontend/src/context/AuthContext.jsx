@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { offlineService } from '../services/offline.js';
+import { api, setToken, clearToken, getToken } from '../api.js';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -7,55 +7,70 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [focusAreas, setFocusAreas] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  function refresh() {
-    const savedUser = offlineService.getUser();
-    const savedProfile = offlineService.getProfile();
-    setUser(savedUser);
-    setProfile(savedProfile);
-    setLoading(false);
+  // Load the current session from the backend using the stored JWT.
+  async function refresh() {
+    if (!getToken()) {
+      setUser(null);
+      setProfile(null);
+      setFocusAreas([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await api('/me');
+      setUser(data.user);
+      setProfile(data.profile || null);
+      setFocusAreas(data.focusAreas || []);
+    } catch {
+      // token invalid/expired — clear it and fall back to logged-out state
+      clearToken();
+      setUser(null);
+      setProfile(null);
+      setFocusAreas([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  function signup(payload) {
-    const newUser = {
-      id: Date.now(),
-      name: payload.name,
-      email: payload.email,
-      created_at: new Date().toISOString(),
-      assessmentCompleted: false,
-    };
-    offlineService.setUser(newUser);
-    setUser(newUser);
-    return Promise.resolve({ user: newUser, token: 'offline-token' });
+  async function signup(payload) {
+    const res = await api('/auth/signup', { method: 'POST', body: payload });
+    setToken(res.token);
+    setUser(res.user);
+    return res;
   }
 
-  function login(payload) {
-    // In offline mode, just check if user exists by email
-    const savedUser = offlineService.getUser();
-    if (savedUser && savedUser.email === payload.email) {
-      setUser(savedUser);
-      return Promise.resolve({
-        user: savedUser,
-        token: 'offline-token',
-        assessmentCompleted: savedUser.assessmentCompleted || false,
-      });
-    }
-    return Promise.reject(new Error('User not found. Please sign up first.'));
+  async function login(payload) {
+    const res = await api('/auth/login', { method: 'POST', body: payload });
+    setToken(res.token);
+    setUser(res.user);
+    await refresh();
+    return res;
   }
 
   function logout() {
-    offlineService.clearUser();
+    clearToken();
     setUser(null);
     setProfile(null);
+    setFocusAreas([]);
+  }
+
+  // Permanently delete the account and all data on the server.
+  async function deleteAccount() {
+    await api('/account', { method: 'DELETE' });
+    logout();
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signup, login, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, profile, focusAreas, loading, signup, login, logout, deleteAccount, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getAIResponse } from '../services/mockData.js';
-import { offlineService } from '../services/offline.js';
+import { api } from '../api.js';
 import MoodPicker from './MoodPicker.jsx';
 
+// Screen 11: Journal — write entries and browse past ones.
 export default function Journal() {
   const location = useLocation();
   const [view, setView] = useState('write');
@@ -19,8 +19,8 @@ export default function Journal() {
   const [filter, setFilter] = useState('');
 
   function load() {
-    const allEntries = offlineService.getJournalEntries(filter);
-    setEntries(allEntries);
+    const q = filter ? `?theme=${encodeURIComponent(filter)}` : '';
+    api(`/journal${q}`).then((d) => setEntries(d.entries)).catch((e) => setError(e.message));
   }
   useEffect(() => { load(); }, [filter]);
 
@@ -29,17 +29,16 @@ export default function Journal() {
     if (!text.trim()) { setError('Your entry cannot be empty.'); return; }
     setBusy(true);
     try {
-      let aiReflection = null;
-      if (reflect) {
-        aiReflection = getAIResponse(text);
-      }
-      offlineService.addJournalEntry({
-        prompt_text: prompt,
-        journal_text: text,
-        mood_before: moodBefore,
-        mood_after: moodAfter,
-        tags,
-        ai_reflection: aiReflection,
+      await api('/journal', {
+        method: 'POST',
+        body: {
+          prompt_text: prompt,
+          journal_text: text,
+          mood_before: moodBefore,
+          mood_after: moodAfter,
+          tags,
+          reflect,
+        },
       });
       setText('');
       setTags('');
@@ -54,8 +53,8 @@ export default function Journal() {
     }
   }
 
-  function toggleFav(id) {
-    offlineService.toggleFavorite(id);
+  async function toggleFav(id) {
+    await api(`/journal/${id}/favorite`, { method: 'PATCH' });
     load();
   }
 

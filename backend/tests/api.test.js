@@ -238,3 +238,39 @@ test('NEGATIVE: favoriting another concept that does not exist returns 404', asy
   const { status } = await api('/api/journal/99999/favorite', { method: 'PATCH', token });
   assert.equal(status, 404);
 });
+
+// ---------------------------------------------------------------------------
+// Account deletion (PRD §8 privacy / right to erasure)
+// ---------------------------------------------------------------------------
+test('NEGATIVE: deleting account without a token returns 401', async () => {
+  const { status } = await api('/api/account', { method: 'DELETE' });
+  assert.equal(status, 401);
+});
+
+test('POSITIVE: a user can permanently delete their account and all data', async () => {
+  // Use a disposable account so the shared `token` user is untouched.
+  const signup = await api('/api/auth/signup', {
+    method: 'POST',
+    body: { name: 'Temp', email: 'temp-delete@example.com', password: 'secret123' },
+  });
+  assert.equal(signup.status, 201);
+  const tmp = signup.json.token;
+
+  // Create some data to prove cascade deletion.
+  await api('/api/journal', { method: 'POST', token: tmp, body: { journal_text: 'A private thought.' } });
+
+  const del = await api('/api/account', { method: 'DELETE', token: tmp });
+  assert.equal(del.status, 200);
+  assert.equal(del.json.ok, true);
+
+  // The old token can no longer reach a (now deleted) user.
+  const me = await api('/api/me', { token: tmp });
+  assert.equal(me.status, 404);
+
+  // The email is free again — proof the user row is truly gone.
+  const reuse = await api('/api/auth/signup', {
+    method: 'POST',
+    body: { name: 'Temp2', email: 'temp-delete@example.com', password: 'secret123' },
+  });
+  assert.equal(reuse.status, 201);
+});

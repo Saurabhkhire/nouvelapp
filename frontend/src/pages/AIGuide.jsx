@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { getAIResponse } from '../services/mockData.js';
+import { api } from '../api.js';
 
+// Screen 12: AI Guide — a grounded reflective companion (PRD §6/§8).
 export default function AIGuide() {
   const [messages, setMessages] = useState([
     { role: 'ai', content: 'I\'m here with you. What feels most present for you right now?' },
@@ -11,17 +12,21 @@ export default function AIGuide() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  function send() {
+  async function send() {
     const text = input.trim();
     if (!text || busy) return;
+    const history = messages.slice(-10);
     setMessages((m) => [...m, { role: 'user', content: text }]);
     setInput('');
     setBusy(true);
-    setTimeout(() => {
-      const reply = getAIResponse(text);
+    try {
+      const { reply } = await api('/ai/guide', { method: 'POST', body: { message: text, history } });
       setMessages((m) => [...m, { role: 'ai', content: reply }]);
+    } catch (e) {
+      setMessages((m) => [...m, { role: 'ai', content: 'I had trouble responding just now. Take a breath, and try again in a moment.' }]);
+    } finally {
       setBusy(false);
-    }, 500);
+    }
   }
 
   return (
